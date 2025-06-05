@@ -32,10 +32,13 @@ class RequestEditor(QWidget):
         self.url = QLineEdit(self)
         url_label = QLabel('URL')
         headers_label = QLabel('HEADERS')
+        cookies_label = QLabel('COOKIES')
         body_label = QLabel('BODY')
         method_label = QLabel('METHOD')
         self.headers = QTextEdit(self)
         self.headers.setMaximumHeight(250)
+        self.cookies = QTextEdit(self)
+        self.cookies.setMaximumHeight(150)
         self.body = TextEditWithTabSpaces(self)
         self.method = QLineEdit(self)
 
@@ -47,6 +50,8 @@ class RequestEditor(QWidget):
         self.layout.addWidget(self.method)
         self.layout.addWidget(url_label)
         self.layout.addWidget(self.url)
+        self.layout.addWidget(cookies_label)
+        self.layout.addWidget(self.cookies)
         self.layout.addWidget(headers_label)
         self.layout.addWidget(self.headers)
         self.layout.addWidget(body_label)
@@ -60,6 +65,7 @@ class RequestEditor(QWidget):
         method = data.get('method')
         headers = data.get('headers')
         payload = data.get('payload')
+        cookies = data.get('cookies')
 
         if method:
             self.method.setText(method)
@@ -69,6 +75,8 @@ class RequestEditor(QWidget):
             self.headers.setPlainText(json.dumps(headers, indent=4, ensure_ascii=False))
         if payload:
             self.body.setPlainText(json.dumps(payload, indent=4, ensure_ascii=False))
+        if cookies:
+            self.cookies.setPlainText(json.dumps(cookies, indent=4, ensure_ascii=False))
 
     def savePayload(self):
         method = self.method.text()

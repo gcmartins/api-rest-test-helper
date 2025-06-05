@@ -29,14 +29,11 @@ class MainWindow(QWidget):
         splitter.setSizes([450, 550])
         layout.addWidget(splitter)
         self.setLayout(layout)
-        self.cookies = None
 
     def parse_curl_command(self):
         dialog = CurlInputDialog(self)
         if dialog.exec_():
             data = dialog.get_curl_params()
-            cookies = data.get('cookies')
-            self.cookies = cookies
 
             self.request_editor.setRequestFields(data)
 
@@ -45,10 +42,12 @@ class MainWindow(QWidget):
         url = self.request_editor.url.text()
         header_text = self.request_editor.headers.toPlainText()
         headers = json.loads(header_text) if header_text else dict()
+        cookies_text = self.request_editor.cookies.toPlainText()
+        cookies = json.loads(cookies_text) if cookies_text else dict()
         payload_text = self.request_editor.body.toPlainText()
         payload = json.loads(payload_text) if payload_text else dict()
 
-        response = run_http_request(method, url, headers, self.cookies, payload)
+        response = run_http_request(method, url, headers, cookies, payload)
 
         self.response.update_response(method, url, payload, response)
 
