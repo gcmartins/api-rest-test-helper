@@ -100,8 +100,9 @@ class RequestEditor(QWidget):
 
         text_data = json.dumps(data_save, indent=4, ensure_ascii=False)
 
-        with open(file_path, 'w') as f:
-            f.write(text_data)
+        if file_path:
+            with open(file_path, 'w') as f:
+                f.write(text_data)
 
     def loadPayload(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -110,7 +111,8 @@ class RequestEditor(QWidget):
             filter="JSON Files (*.json);;All files (*)"
         )
 
-        with open(file_path, 'r') as f:
-            text = f.read()
-            data = json.loads(text)
-            self.setRequestFields(data)
+        if file_path:
+            with open(file_path, 'r') as f:
+                text = f.read()
+                data = json.loads(text)
+                self.setRequestFields(data)
