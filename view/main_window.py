@@ -1,4 +1,5 @@
 import json
+import time
 
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter
@@ -46,8 +47,14 @@ class MainWindow(QWidget):
         cookies = json.loads(cookies_text) if cookies_text else dict()
         payload_text = self.request_editor.body.toPlainText()
         payload = json.loads(payload_text) if payload_text else dict()
+        filepath = self.request_editor.filepath.text()
+        file_key = self.request_editor.file_key.text()
+        files = None
+        if filepath and file_key:
+            files = {
+                file_key: ("file", open(filepath, "rb"), "text/csv"),
+            }
 
-        response = run_http_request(method, url, headers, cookies, payload)
+        response = run_http_request(method, url, headers, cookies, payload, files)
 
         self.response.update_response(method, url, payload, response)
-

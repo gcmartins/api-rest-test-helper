@@ -4,14 +4,15 @@ import re
 import requests
 
 
-def run_http_request(method: str, url: str, headers: dict, cookies: dict, data: dict):
+def run_http_request(method: str, url: str, headers: dict, cookies: dict, data: dict, files=None):
     try:
         if method == "GET":
             return requests.get(url, headers=headers, cookies=cookies)
         elif method == "POST":
             return requests.post(url, headers=headers, cookies=cookies,
                                  json=data if isinstance(data, dict) else None,
-                                 data=None if isinstance(data, dict) else data)
+                                 data=None if isinstance(data, dict) else data,
+                                 files=files)
         elif method == "PUT":
             return requests.put(url, headers=headers, cookies=cookies,
                                 json=data if isinstance(data, dict) else None,

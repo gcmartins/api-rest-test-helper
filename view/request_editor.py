@@ -27,7 +27,9 @@ class RequestEditor(QWidget):
         self.load_btn = QPushButton("Load Payload")
         self.load_btn.clicked.connect(self.loadPayload)
         self.save_btn = QPushButton("Save Payload")
+        self.file_btn = QPushButton("Choose File")
         self.save_btn.clicked.connect(self.savePayload)
+        self.file_btn.clicked.connect(self.choose_file)
 
         self.url = QLineEdit(self)
         url_label = QLabel('URL')
@@ -35,12 +37,15 @@ class RequestEditor(QWidget):
         cookies_label = QLabel('COOKIES')
         body_label = QLabel('BODY')
         method_label = QLabel('METHOD')
+        file_label = QLabel('FILE')
         self.headers = QTextEdit(self)
         self.headers.setMaximumHeight(250)
         self.cookies = QTextEdit(self)
         self.cookies.setMaximumHeight(150)
         self.body = TextEditWithTabSpaces(self)
         self.method = QLineEdit(self)
+        self.file_key = QLineEdit(self)
+        self.filepath = QLineEdit(self)
 
         h_layout = QHBoxLayout()
         h_layout.addWidget(self.btn)
@@ -54,6 +59,12 @@ class RequestEditor(QWidget):
         self.layout.addWidget(self.cookies)
         self.layout.addWidget(headers_label)
         self.layout.addWidget(self.headers)
+        h_layout2 = QHBoxLayout()
+        h_layout2.addWidget(self.file_key)
+        h_layout2.addWidget(self.filepath)
+        h_layout2.addWidget(self.file_btn)
+        self.layout.addWidget(file_label)
+        self.layout.addLayout(h_layout2)
         self.layout.addWidget(body_label)
         self.layout.addWidget(self.body)
         self.layout.addWidget(self.save_btn)
@@ -78,16 +89,27 @@ class RequestEditor(QWidget):
         if cookies:
             self.cookies.setPlainText(json.dumps(cookies, indent=4, ensure_ascii=False))
 
+    def choose_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select file",
+        )
+        if file_path:
+            self.filepath.setText(file_path)
+
     def savePayload(self):
         method = self.method.text()
         url = self.url.text()
         payload = self.body.toPlainText()
-        data = json.loads(payload) if payload else ''
+        data_payload = json.loads(payload) if payload else ''
+        headers = self.headers.toPlainText()
+        data_headers = json.loads(headers) if headers else ''
 
         data_save = {
             'url': url,
             'method': method,
-            'payload': data
+            'payload': data_payload,
+            'headers': data_headers,
         }
 
         suggested_name = f'{method}_{url.replace('/', '\\')}.json'
