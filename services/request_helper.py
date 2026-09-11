@@ -52,7 +52,7 @@ def extract_http_method(curl_command):
 
 
 def extract_url(curl_command):
-    url_pattern = r"curl '([^']+)'"
+    url_pattern = r"curl --url '([^']+)'"
     url_match = re.search(url_pattern, curl_command)
     url = url_match.group(1) if url_match else None
     return url
