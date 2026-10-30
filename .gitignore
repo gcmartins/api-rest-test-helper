@@ -3,5 +3,6 @@
 /reports/
 /.venv/
 __pycache__/
-coverage.md
+pytest.xml
+pytest-coverage.txt
 .coverage

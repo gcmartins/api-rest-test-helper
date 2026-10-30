@@ -26,31 +26,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      - name: Run tests with coverage
-        run: uv run pytest --cov --cov-report=term-missing --cov-report=markdown:coverage.md
-
-      - name: Build coverage report
-        if: always()
-        env:
-          # On pull_request, github.sha is the temporary merge commit; show the PR head instead
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Run tests
         run: |
-          {
-            echo "## Test coverage"
-            echo
-            if [ -f coverage.md ]; then
-              cat coverage.md
-            else
-              echo "Coverage report was not generated; see the workflow logs."
-            fi
-            echo
-            echo "_Commit ${HEAD_SHA::7} · [workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})_"
-          } > coverage-comment.md
-          cat coverage-comment.md >> "$GITHUB_STEP_SUMMARY"
+          set -o pipefail
+          uv run pytest tests -v \
+            --cov \
+            --cov-report=term-missing:skip-covered \
+            --junitxml=pytest.xml | tee pytest-coverage.txt
 
-      - name: Comment coverage on PR
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@v2
+      - name: Post coverage comment on PR
+        uses: MishaKav/pytest-coverage-comment@v1
+        if: github.event_name == 'pull_request'
         with:
-          header: coverage
-          path: coverage-comment.md
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
