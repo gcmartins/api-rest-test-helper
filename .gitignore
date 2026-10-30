@@ -3,3 +3,5 @@
 /reports/
 /.venv/
 __pycache__/
+coverage.md
+.coverage
