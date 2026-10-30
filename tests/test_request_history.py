@@ -1,6 +1,7 @@
 import pytest
 import requests
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtTest import QTest
 
 from view import main_window
 from view.main_window import MainWindow
@@ -97,6 +98,8 @@ def test_completed_request_is_recorded_and_reloads(window, monkeypatch):
     editor.setRequestFields(POST_FIELDS)
     window.run_request()
 
+    # Recorded even while the pane is hidden
+    assert window.history.isHidden()
     assert window.history.list.count() == 1
     assert 'POST 201  https://api.test/items' in window.history.list.item(0).text()
 
@@ -113,3 +116,30 @@ def test_failed_request_is_recorded(window, monkeypatch):
     window.run_request()
 
     assert 'GET ERROR  https://api.test/down' in window.history.list.item(0).text()
+
+
+def test_history_pane_hidden_by_default_and_toggled_by_button(window):
+    button = window.request_editor.history_btn
+    assert window.history.isHidden()
+    assert not button.isChecked()
+
+    button.click()
+    assert not window.history.isHidden()
+    assert button.isChecked()
+
+    button.click()
+    assert window.history.isHidden()
+
+
+def test_ctrl_h_toggles_history_pane(app, window):
+    window.activateWindow()
+    window.request_editor.url.setFocus()
+    app.processEvents()
+
+    QTest.keyClick(window.request_editor.url, Qt.Key.Key_H, Qt.KeyboardModifier.ControlModifier)
+    assert not window.history.isHidden()
+    assert window.request_editor.history_btn.isChecked()
+
+    QTest.keyClick(window.request_editor.url, Qt.Key.Key_H, Qt.KeyboardModifier.ControlModifier)
+    assert window.history.isHidden()
+    assert not window.request_editor.history_btn.isChecked()

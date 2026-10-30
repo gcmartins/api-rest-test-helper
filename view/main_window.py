@@ -31,6 +31,8 @@ class MainWindow(QWidget):
         # click() is a no-op while the button is disabled, so this can't start a second request
         for keys in ("Ctrl+Return", "Ctrl+Enter"):
             QShortcut(QKeySequence(keys), self).activated.connect(self.response.request_btn.click)
+        self.request_editor.history_btn.toggled.connect(self.history.setVisible)
+        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(self.request_editor.history_btn.toggle)
 
         layout = QVBoxLayout(self)
 
@@ -39,6 +41,9 @@ class MainWindow(QWidget):
         splitter.addWidget(self.request_editor)
         splitter.addWidget(self.response)
         splitter.setSizes([220, 450, 550])
+        # Hidden by default; the minimum width keeps it readable when toggled on
+        self.history.setMinimumWidth(200)
+        self.history.hide()
         layout.addWidget(splitter)
         self.setLayout(layout)
 
