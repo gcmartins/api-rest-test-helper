@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QMessageBox, QSplitter, QVBoxLayout, QWidget
 
 from view.curl_input_dialog import CurlInputDialog
 from view.request_editor import RequestEditor
+from view.request_history import RequestHistory
 from view.request_worker import RequestWorker
 from view.response_output import ResponseOutput
 
@@ -18,10 +19,13 @@ class MainWindow(QWidget):
         self.setWindowTitle("API test helper")
         self.showMaximized()
 
+        self.history = RequestHistory(self)
         self.request_editor = RequestEditor(self)
         self.response = ResponseOutput(self)
         self._worker = None
+        self._pending_fields = None
 
+        self.history.entry_selected.connect(lambda fields: self.request_editor.setRequestFields(fields, replace=True))
         self.request_editor.btn.clicked.connect(self.parse_curl_command)
         self.response.request_btn.clicked.connect(self.run_request)
         # click() is a no-op while the button is disabled, so this can't start a second request
@@ -31,9 +35,10 @@ class MainWindow(QWidget):
         layout = QVBoxLayout(self)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(self.history)
         splitter.addWidget(self.request_editor)
         splitter.addWidget(self.response)
-        splitter.setSizes([450, 550])
+        splitter.setSizes([220, 450, 550])
         layout.addWidget(splitter)
         self.setLayout(layout)
 
@@ -72,6 +77,8 @@ class MainWindow(QWidget):
                 file_key: (os.path.basename(filepath), content, mime_type),
             }
 
+        # Only one request runs at a time (the Run button is disabled), so this matches the finished request
+        self._pending_fields = fields
         self._worker = RequestWorker(method, url, fields['headers'], fields['cookies'], payload, files, self)
         self._worker.succeeded.connect(self._on_request_succeeded)
         self._worker.failed.connect(self._on_request_failed)
@@ -83,10 +90,12 @@ class MainWindow(QWidget):
     def _on_request_succeeded(self, response):
         worker = self.sender()
         self.response.update_response(worker.method, worker.url, worker.payload, response)
+        self.history.add_entry(self._pending_fields, str(response.status_code))
 
     def _on_request_failed(self, error):
         worker = self.sender()
         self.response.show_error(worker.method, worker.url, error)
+        self.history.add_entry(self._pending_fields, 'ERROR')
 
     def _on_request_finished(self):
         self.sender().deleteLater()

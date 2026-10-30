@@ -7,6 +7,7 @@ A desktop app (PySide6 + `requests`) for building, importing and running HTTP AP
 - **Request editor**: method dropdown (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, or type a custom one), URL, headers and cookies as JSON, a JSON or raw body, and an optional file upload (sent as multipart form data).
 - **cURL import**: parse a full cURL command, or only its headers and cookies. Supports `-X`, `-H`, `-b`, `-d`/`--data-*`, `--json`, `-F`, `-u`, `-G` and more.
 - **Save and load requests** as JSON files.
+- **Request history** for the session: click an entry to load it back into the editor. History is kept in memory only and cleared when the app closes.
 - **Responses**: status code, pretty-printed JSON (or raw text) appended to a log you can save to a file.
 - Requests run in the background with a 30-second timeout, so the window stays responsive. Press **Ctrl+Enter** to run the request.
 

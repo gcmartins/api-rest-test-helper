@@ -88,7 +88,13 @@ class RequestEditor(QWidget):
 
         self.setLayout(self._layout)
 
-    def setRequestFields(self, data: dict):
+    def setRequestFields(self, data: dict, replace=False):
+        """Fills the editor from data. With replace=True, fields missing from data are cleared first."""
+        if replace:
+            self.method.setCurrentIndex(0)
+            for field in (self.url, self.headers, self.cookies, self.body, self.file_key, self.filepath):
+                field.clear()
+
         url = data.get('url')
         method = data.get('method')
         headers = data.get('headers')
