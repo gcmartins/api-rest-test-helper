@@ -1,7 +1,15 @@
 import json
 
-from PySide6.QtWidgets import QVBoxLayout, QPushButton, QPlainTextEdit, QWidget, QLabel, QLineEdit, QHBoxLayout, \
-    QFileDialog
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class ResponseOutput(QWidget):

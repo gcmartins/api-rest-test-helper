@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QMessageBox
+from PySide6.QtWidgets import QMessageBox, QSplitter, QVBoxLayout, QWidget
 
 from view.curl_input_dialog import CurlInputDialog
 from view.request_editor import RequestEditor

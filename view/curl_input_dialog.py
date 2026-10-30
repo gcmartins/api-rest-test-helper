@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QPushButton, QVBoxLayout, QPlainTextEdit, QHBoxLayout
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QPlainTextEdit, QPushButton, QVBoxLayout
 
 from services.request_helper import parse_curl_to_requests, parse_headers_to_requests
 

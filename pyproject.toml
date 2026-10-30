@@ -1,7 +1,7 @@
 [project]
 name = "api-rest-test-helper"
 version = "0.1.0"
-description = "Add your description here"
+description = "Desktop helper for building, importing (cURL) and running HTTP API requests"
 requires-python = ">=3.12"
 dependencies = [
     "pyside6==6.9.0",
@@ -12,6 +12,7 @@ dependencies = [
 dev = [
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
+    "ruff>=0.17.3",
 ]
 
 [tool.pytest.ini_options]
@@ -22,3 +23,10 @@ source = ["services", "view"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
