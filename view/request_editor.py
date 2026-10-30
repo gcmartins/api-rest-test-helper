@@ -1,8 +1,10 @@
 import json
+import re
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QTextEdit, QFileDialog, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QTextEdit, QFileDialog, QHBoxLayout, \
+    QMessageBox
 
 
 class TextEditWithTabSpaces(QTextEdit):
@@ -77,6 +79,8 @@ class RequestEditor(QWidget):
         headers = data.get('headers')
         payload = data.get('payload')
         cookies = data.get('cookies')
+        file_key = data.get('file_key')
+        filepath = data.get('filepath')
 
         if method:
             self.method.setText(method)
@@ -84,10 +88,47 @@ class RequestEditor(QWidget):
             self.url.setText(url)
         if headers:
             self.headers.setPlainText(json.dumps(headers, indent=4, ensure_ascii=False))
-        if payload:
+        if isinstance(payload, str):
+            self.body.setPlainText(payload)
+        elif payload:
             self.body.setPlainText(json.dumps(payload, indent=4, ensure_ascii=False))
         if cookies:
             self.cookies.setPlainText(json.dumps(cookies, indent=4, ensure_ascii=False))
+        if file_key:
+            self.file_key.setText(file_key)
+        if filepath:
+            self.filepath.setText(filepath)
+
+    def getRequestFields(self) -> dict:
+        """Returns the parsed editor fields. Raises ValueError naming the field with invalid JSON."""
+        body = self.body.toPlainText().strip()
+        try:
+            payload = json.loads(body) if body else None
+        except json.JSONDecodeError:
+            # Non-JSON bodies are sent as raw text
+            payload = body
+
+        return {
+            'method': self.method.text().strip().upper(),
+            'url': self.url.text().strip(),
+            'headers': self._parse_json_field('HEADERS', self.headers.toPlainText()),
+            'cookies': self._parse_json_field('COOKIES', self.cookies.toPlainText()),
+            'payload': payload,
+            'file_key': self.file_key.text().strip(),
+            'filepath': self.filepath.text().strip(),
+        }
+
+    @staticmethod
+    def _parse_json_field(name: str, text: str) -> dict:
+        if not text.strip():
+            return {}
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f'{name} is not valid JSON: {e}')
+        if not isinstance(value, dict):
+            raise ValueError(f'{name} must be a JSON object')
+        return value
 
     def choose_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -98,21 +139,23 @@ class RequestEditor(QWidget):
             self.filepath.setText(file_path)
 
     def savePayload(self):
-        method = self.method.text()
-        url = self.url.text()
-        payload = self.body.toPlainText()
-        data_payload = json.loads(payload) if payload else ''
-        headers = self.headers.toPlainText()
-        data_headers = json.loads(headers) if headers else ''
+        try:
+            fields = self.getRequestFields()
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid request", str(e))
+            return
 
+        method = fields['method']
+        url = fields['url']
         data_save = {
             'url': url,
             'method': method,
-            'payload': data_payload,
-            'headers': data_headers,
+            'payload': fields['payload'],
+            'headers': fields['headers'],
+            'cookies': fields['cookies'],
         }
 
-        suggested_name = f'{method}_{url.replace('/', '\\')}.json'
+        suggested_name = f"{method}_{re.sub(r'[^\w.-]+', '_', url).strip('_')}.json"
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save as",
@@ -123,7 +166,7 @@ class RequestEditor(QWidget):
         text_data = json.dumps(data_save, indent=4, ensure_ascii=False)
 
         if file_path:
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(text_data)
 
     def loadPayload(self):
@@ -134,7 +177,10 @@ class RequestEditor(QWidget):
         )
 
         if file_path:
-            with open(file_path, 'r') as f:
-                text = f.read()
-                data = json.loads(text)
-                self.setRequestFields(data)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            except (OSError, json.JSONDecodeError) as e:
+                QMessageBox.warning(self, "Load failed", f"Could not load '{file_path}': {e}")
+                return
+            self.setRequestFields(data)

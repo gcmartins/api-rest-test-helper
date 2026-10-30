@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          uv run pytest tests -v \
+            --cov \
+            --cov-report=term-missing:skip-covered \
+            --junitxml=pytest.xml | tee pytest-coverage.txt
+
+      - name: Post coverage comment on PR
+        uses: MishaKav/pytest-coverage-comment@v1
+        if: github.event_name == 'pull_request'
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
