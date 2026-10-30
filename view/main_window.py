@@ -1,8 +1,10 @@
-import json
-import time
+import mimetypes
+import os
+from pathlib import Path
 
-from PySide6.QtGui import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter
+import requests
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QMessageBox
 
 from services.request_helper import run_http_request
 from view.curl_input_dialog import CurlInputDialog
@@ -33,28 +35,43 @@ class MainWindow(QWidget):
 
     def parse_curl_command(self):
         dialog = CurlInputDialog(self)
-        if dialog.exec_():
+        if dialog.exec():
             data = dialog.get_curl_params()
 
             self.request_editor.setRequestFields(data)
 
     def run_request(self):
-        method = self.request_editor.method.text()
-        url = self.request_editor.url.text()
-        header_text = self.request_editor.headers.toPlainText()
-        headers = json.loads(header_text) if header_text else dict()
-        cookies_text = self.request_editor.cookies.toPlainText()
-        cookies = json.loads(cookies_text) if cookies_text else dict()
-        payload_text = self.request_editor.body.toPlainText()
-        payload = json.loads(payload_text) if payload_text else dict()
-        filepath = self.request_editor.filepath.text()
-        file_key = self.request_editor.file_key.text()
+        try:
+            fields = self.request_editor.getRequestFields()
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid request", str(e))
+            return
+
+        method = fields['method']
+        url = fields['url']
+        payload = fields['payload']
+        if not method or not url:
+            QMessageBox.warning(self, "Invalid request", "METHOD and URL are required.")
+            return
+
         files = None
+        filepath = fields['filepath']
+        file_key = fields['file_key']
         if filepath and file_key:
+            try:
+                content = Path(filepath).read_bytes()
+            except OSError as e:
+                QMessageBox.warning(self, "Invalid file", f"Could not read '{filepath}': {e}")
+                return
+            mime_type = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
             files = {
-                file_key: ("file", open(filepath, "rb"), "text/csv"),
+                file_key: (os.path.basename(filepath), content, mime_type),
             }
 
-        response = run_http_request(method, url, headers, cookies, payload, files)
+        try:
+            response = run_http_request(method, url, fields['headers'], fields['cookies'], payload, files)
+        except requests.RequestException as e:
+            self.response.show_error(method, url, e)
+            return
 
         self.response.update_response(method, url, payload, response)

@@ -37,7 +37,7 @@ class ResponseOutput(QWidget):
         self.output.appendPlainText(f'{method} {url}')
         if payload:
             self.output.appendPlainText('PAYLOAD:')
-            self.output.appendPlainText(json.dumps(payload, indent=4))
+            self.output.appendPlainText(payload if isinstance(payload, str) else json.dumps(payload, indent=4))
         try:
             result = json.dumps(response.json(), indent=4)
             self.output.appendPlainText(f'STATUS CODE: {response.status_code}')
@@ -48,6 +48,12 @@ class ResponseOutput(QWidget):
             self.output.appendPlainText('RESPONSE:')
             self.output.appendPlainText(response.text)
 
+    def show_error(self, method: str, url: str, error: Exception):
+        self.status_code.setText('ERROR')
+        self.output.appendPlainText('---')
+        self.output.appendPlainText(f'{method} {url}')
+        self.output.appendPlainText(f'REQUEST FAILED: {error}')
+
     def saveResponse(self):
         data = self.output.toPlainText()
         file_path, _ = QFileDialog.getSaveFileName(
@@ -56,5 +62,6 @@ class ResponseOutput(QWidget):
             filter="TXT Files (*.txt);;All files (*)"
         )
 
-        with open(file_path, 'w') as f:
-            f.write(data)
+        if file_path:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(data)

@@ -1,85 +1,182 @@
+import base64
 import json
 import re
+import shlex
+from urllib.parse import parse_qsl
 
 import requests
 
+DEFAULT_TIMEOUT = 30
 
-def run_http_request(method: str, url: str, headers: dict, cookies: dict, data: dict, files=None):
-    try:
-        if method == "GET":
-            return requests.get(url, headers=headers, cookies=cookies)
-        elif method == "POST":
-            return requests.post(url, headers=headers, cookies=cookies,
-                                 json=data if isinstance(data, dict) else None,
-                                 data=None if isinstance(data, dict) else data,
-                                 files=files)
-        elif method == "PUT":
-            return requests.put(url, headers=headers, cookies=cookies,
-                                json=data if isinstance(data, dict) else None,
-                                data=None if isinstance(data, dict) else data)
-        elif method == "DELETE":
-            return requests.delete(url, headers=headers, cookies=cookies)
-        else:
-            print(f"Unsupported HTTP method: '{method}'.")
+DATA_FLAGS = {'-d', '--data', '--data-raw', '--data-binary', '--data-ascii', '--data-urlencode'}
 
-    except requests.RequestException as e:
-        print(f"Request error: {e}")
+# Flags that take an argument we don't use; listed so their argument isn't mistaken for the URL
+IGNORED_FLAGS_WITH_ARG = {
+    '-o', '--output', '-m', '--max-time', '--connect-timeout', '--retry', '-w', '--write-out',
+    '-x', '--proxy', '--cacert', '--cert', '--key', '-K', '--config', '-c', '--cookie-jar',
+    '-T', '--upload-file', '-r', '--range', '--resolve', '--interface',
+}
+
+# Short flags that accept their argument attached, e.g. -XPOST
+SHORT_FLAGS_WITH_ARG = {'-X', '-H', '-d', '-b', '-u', '-F', '-A', '-e'}
+
+
+def run_http_request(method: str, url: str, headers: dict, cookies: dict, data, files=None,
+                     timeout=DEFAULT_TIMEOUT):
+    """Runs the request. Raises requests.RequestException on failure."""
+    kwargs = {'headers': headers, 'cookies': cookies, 'files': files, 'timeout': timeout}
+    if files:
+        # Multipart requests can't carry a JSON or raw body; send it as form fields instead
+        if isinstance(data, str):
+            data = parse_qsl(data, keep_blank_values=True)
+        if data:
+            kwargs['data'] = data
+    elif isinstance(data, (dict, list)):
+        if data:
+            kwargs['json'] = data
+    elif data:
+        kwargs['data'] = data
+    return requests.request(method.upper(), url, **kwargs)
 
 
 def parse_curl_to_requests(curl_command: str) -> dict:
-    curl_command = " ".join(curl_command.strip().splitlines())
-    return {
-        'method': extract_http_method(curl_command),
-        'url': extract_url(curl_command),
-        'headers': extract_headers(curl_command),
-        'cookies': extract_cookies(curl_command),
-        'payload': extract_payload(curl_command)
-    }
+    return _parse_curl(curl_command)
 
 
 def parse_headers_to_requests(curl_command: str) -> dict:
-    curl_command = " ".join(curl_command.strip().splitlines())
+    parsed = _parse_curl(curl_command)
     return {
-        'headers': extract_headers(curl_command),
-        'cookies': extract_cookies(curl_command)
+        'headers': parsed['headers'],
+        'cookies': parsed['cookies']
     }
 
 
-def extract_http_method(curl_command):
-    method_match = re.search(r"-X (\w+)", curl_command)
-    method = method_match.group(1).upper() if method_match else ("POST" if "--data" in curl_command else "GET")
-    return method
+def _tokenize(curl_command: str) -> list[str]:
+    # Join shell line continuations before splitting
+    curl_command = re.sub(r'\\\r?\n', ' ', curl_command.strip())
+    curl_command = " ".join(curl_command.splitlines())
+    return shlex.split(curl_command)
 
 
-def extract_url(curl_command):
-    url_pattern = r"curl --url '([^']+)'"
-    url_match = re.search(url_pattern, curl_command)
-    url = url_match.group(1) if url_match else None
-    return url
+def _parse_curl(curl_command: str) -> dict:
+    tokens = _tokenize(curl_command)
+    if tokens and tokens[0] == 'curl':
+        tokens = tokens[1:]
 
+    method = None
+    url = None
+    headers = {}
+    cookies = {}
+    data_parts = []
+    form = {}
+    file_field = None
+    force_get = False
 
-def extract_payload(curl_command):
-    payload_match = re.search(r"--data(?:-raw|-binary)? '([^']+)'", curl_command)
-    raw_data = payload_match.group(1) if payload_match else None
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        i += 1
+
+        if not token.startswith('-') or token == '-':
+            if url is None:
+                url = token
+            continue
+
+        # Split --flag=value and attached short flag values (-XPOST)
+        value = None
+        if token.startswith('--') and '=' in token:
+            token, value = token.split('=', 1)
+        elif not token.startswith('--') and len(token) > 2 and token[:2] in SHORT_FLAGS_WITH_ARG:
+            token, value = token[:2], token[2:]
+
+        def next_value():
+            nonlocal i
+            if value is not None:
+                return value
+            if i < len(tokens):
+                i += 1
+                return tokens[i - 1]
+            return ''
+
+        if token in ('-X', '--request'):
+            method = next_value().upper()
+        elif token == '--url':
+            url = next_value()
+        elif token in ('-H', '--header'):
+            _add_header(next_value(), headers, cookies)
+        elif token in ('-b', '--cookie'):
+            cookies.update(_parse_cookie_string(next_value()))
+        elif token in DATA_FLAGS:
+            data_parts.append(next_value())
+        elif token == '--json':
+            data_parts.append(next_value())
+            headers.setdefault('Content-Type', 'application/json')
+            headers.setdefault('Accept', 'application/json')
+        elif token in ('-F', '--form'):
+            key, _, field_value = next_value().partition('=')
+            if field_value.startswith('@'):
+                file_field = (key, field_value[1:].split(';', 1)[0])
+            else:
+                form[key] = field_value
+        elif token in ('-u', '--user'):
+            credentials = base64.b64encode(next_value().encode()).decode()
+            headers['Authorization'] = f'Basic {credentials}'
+        elif token in ('-A', '--user-agent'):
+            headers['User-Agent'] = next_value()
+        elif token in ('-e', '--referer'):
+            headers['Referer'] = next_value()
+        elif token in ('-I', '--head'):
+            method = 'HEAD'
+        elif token in ('-G', '--get'):
+            force_get = True
+        elif token in IGNORED_FLAGS_WITH_ARG:
+            next_value()
+
     payload = None
-    if raw_data:
+    if data_parts:
+        raw_data = '&'.join(data_parts)
         try:
             payload = json.loads(raw_data)
         except json.JSONDecodeError:
-            pass
-    return payload
+            payload = raw_data
+    elif form:
+        payload = form
+
+    if force_get and isinstance(payload, str) and url:
+        url = f"{url}{'&' if '?' in url else '?'}{payload}"
+        payload = None
+
+    if method is None:
+        has_body = payload is not None or file_field is not None
+        method = 'POST' if has_body and not force_get else 'GET'
+
+    result = {
+        'method': method,
+        'url': url,
+        'headers': headers,
+        'cookies': cookies,
+        'payload': payload
+    }
+    if file_field:
+        result['file_key'], result['filepath'] = file_field
+    return result
 
 
-def extract_cookies(curl_command):
-    cookies_match = re.search(r"-b '([^']+)'", curl_command)
+def _add_header(header: str, headers: dict, cookies: dict):
+    name, sep, value = header.partition(':')
+    if not sep:
+        return
+    name, value = name.strip(), value.strip()
+    if name.lower() == 'cookie':
+        cookies.update(_parse_cookie_string(value))
+    else:
+        headers[name] = value
+
+
+def _parse_cookie_string(cookie_string: str) -> dict:
     cookies = {}
-    if cookies_match:
-        cookie_string = cookies_match.group(1)
-        cookies = dict(cookie.strip().split("=", 1) for cookie in cookie_string.split(";"))
+    for cookie in cookie_string.split(';'):
+        name, sep, value = cookie.strip().partition('=')
+        if sep and name:
+            cookies[name] = value
     return cookies
-
-
-def extract_headers(curl_command):
-    headers_pattern = r"-H '([^:]+): ([^']+)'"
-    headers = dict(re.findall(headers_pattern, curl_command))
-    return headers
