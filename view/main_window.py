@@ -2,13 +2,12 @@ import mimetypes
 import os
 from pathlib import Path
 
-import requests
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QMessageBox
 
-from services.request_helper import run_http_request
 from view.curl_input_dialog import CurlInputDialog
 from view.request_editor import RequestEditor
+from view.request_worker import RequestWorker
 from view.response_output import ResponseOutput
 
 
@@ -20,6 +19,7 @@ class MainWindow(QWidget):
 
         self.request_editor = RequestEditor(self)
         self.response = ResponseOutput(self)
+        self._worker = None
 
         self.request_editor.btn.clicked.connect(self.parse_curl_command)
         self.response.request_btn.clicked.connect(self.run_request)
@@ -68,10 +68,30 @@ class MainWindow(QWidget):
                 file_key: (os.path.basename(filepath), content, mime_type),
             }
 
-        try:
-            response = run_http_request(method, url, fields['headers'], fields['cookies'], payload, files)
-        except requests.RequestException as e:
-            self.response.show_error(method, url, e)
-            return
+        self._worker = RequestWorker(method, url, fields['headers'], fields['cookies'], payload, files, self)
+        self._worker.succeeded.connect(self._on_request_succeeded)
+        self._worker.failed.connect(self._on_request_failed)
+        self._worker.finished.connect(self._on_request_finished)
+        self.response.request_btn.setEnabled(False)
+        self.response.request_btn.setText("Running...")
+        self._worker.start()
 
-        self.response.update_response(method, url, payload, response)
+    def _on_request_succeeded(self, response):
+        worker = self.sender()
+        self.response.update_response(worker.method, worker.url, worker.payload, response)
+
+    def _on_request_failed(self, error):
+        worker = self.sender()
+        self.response.show_error(worker.method, worker.url, error)
+
+    def _on_request_finished(self):
+        self.sender().deleteLater()
+        self._worker = None
+        self.response.request_btn.setText("Run request")
+        self.response.request_btn.setEnabled(True)
+
+    def closeEvent(self, event):
+        # A QThread destroyed while running aborts the app; let the request finish (bounded by its timeout)
+        if self._worker is not None:
+            self._worker.wait()
+        super().closeEvent(event)
