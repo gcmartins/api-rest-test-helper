@@ -12,6 +12,7 @@ class ResponseOutput(QWidget):
 
         self.output = QPlainTextEdit(self)
         self.request_btn = QPushButton("Run request")
+        self.request_btn.setToolTip("Run request (Ctrl+Enter)")
         self.status_code = QLineEdit(self)
 
         layout.addWidget(self.request_btn)
