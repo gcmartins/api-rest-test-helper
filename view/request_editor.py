@@ -40,6 +40,9 @@ class RequestEditor(QWidget):
         self.btn = QPushButton("Import from CURL")
         self.load_btn = QPushButton("Load Payload")
         self.load_btn.clicked.connect(self.loadPayload)
+        self.history_btn = QPushButton("History")
+        self.history_btn.setCheckable(True)
+        self.history_btn.setToolTip("Show request history (Ctrl+H)")
         self.save_btn = QPushButton("Save Payload")
         self.file_btn = QPushButton("Choose File")
         self.save_btn.clicked.connect(self.savePayload)
@@ -67,6 +70,7 @@ class RequestEditor(QWidget):
         h_layout = QHBoxLayout()
         h_layout.addWidget(self.btn)
         h_layout.addWidget(self.load_btn)
+        h_layout.addWidget(self.history_btn)
         self._layout.addLayout(h_layout)
         self._layout.addWidget(method_label)
         self._layout.addWidget(self.method)
@@ -88,7 +92,13 @@ class RequestEditor(QWidget):
 
         self.setLayout(self._layout)
 
-    def setRequestFields(self, data: dict):
+    def setRequestFields(self, data: dict, replace=False):
+        """Fills the editor from data. With replace=True, fields missing from data are cleared first."""
+        if replace:
+            self.method.setCurrentIndex(0)
+            for field in (self.url, self.headers, self.cookies, self.body, self.file_key, self.filepath):
+                field.clear()
+
         url = data.get('url')
         method = data.get('method')
         headers = data.get('headers')
