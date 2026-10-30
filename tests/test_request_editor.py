@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 
 from view.main_window import MainWindow
-from view.request_editor import RequestEditor, HTTP_METHODS
+from view.request_editor import HTTP_METHODS, RequestEditor
 
 
 @pytest.fixture

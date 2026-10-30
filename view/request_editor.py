@@ -3,8 +3,18 @@ import re
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QTextEdit, QFileDialog, QHBoxLayout, \
-    QMessageBox, QComboBox
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
@@ -134,7 +144,7 @@ class RequestEditor(QWidget):
         try:
             value = json.loads(text)
         except json.JSONDecodeError as e:
-            raise ValueError(f'{name} is not valid JSON: {e}')
+            raise ValueError(f'{name} is not valid JSON: {e}') from e
         if not isinstance(value, dict):
             raise ValueError(f'{name} must be a JSON object')
         return value
@@ -187,7 +197,7 @@ class RequestEditor(QWidget):
 
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
             except (OSError, json.JSONDecodeError) as e:
                 QMessageBox.warning(self, "Load failed", f"Could not load '{file_path}': {e}")
