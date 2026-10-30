@@ -4,7 +4,9 @@ import re
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QTextEdit, QFileDialog, QHBoxLayout, \
-    QMessageBox
+    QMessageBox, QComboBox
+
+HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
 
 class TextEditWithTabSpaces(QTextEdit):
@@ -45,7 +47,10 @@ class RequestEditor(QWidget):
         self.cookies = QTextEdit(self)
         self.cookies.setMaximumHeight(150)
         self.body = TextEditWithTabSpaces(self)
-        self.method = QLineEdit(self)
+        # Editable so custom methods from cURL imports or saved files still work
+        self.method = QComboBox(self)
+        self.method.setEditable(True)
+        self.method.addItems(HTTP_METHODS)
         self.file_key = QLineEdit(self)
         self.filepath = QLineEdit(self)
 
@@ -83,7 +88,11 @@ class RequestEditor(QWidget):
         filepath = data.get('filepath')
 
         if method:
-            self.method.setText(method)
+            index = self.method.findText(method.upper())
+            if index >= 0:
+                self.method.setCurrentIndex(index)
+            else:
+                self.method.setEditText(method.upper())
         if url:
             self.url.setText(url)
         if headers:
@@ -109,7 +118,7 @@ class RequestEditor(QWidget):
             payload = body
 
         return {
-            'method': self.method.text().strip().upper(),
+            'method': self.method.currentText().strip().upper(),
             'url': self.url.text().strip(),
             'headers': self._parse_json_field('HEADERS', self.headers.toPlainText()),
             'cookies': self._parse_json_field('COOKIES', self.cookies.toPlainText()),

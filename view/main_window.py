@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QMessageBox
 
 from view.curl_input_dialog import CurlInputDialog
@@ -23,6 +24,9 @@ class MainWindow(QWidget):
 
         self.request_editor.btn.clicked.connect(self.parse_curl_command)
         self.response.request_btn.clicked.connect(self.run_request)
+        # click() is a no-op while the button is disabled, so this can't start a second request
+        for keys in ("Ctrl+Return", "Ctrl+Enter"):
+            QShortcut(QKeySequence(keys), self).activated.connect(self.response.request_btn.click)
 
         layout = QVBoxLayout(self)
 

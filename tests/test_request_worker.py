@@ -1,16 +1,10 @@
 import threading
 
-import pytest
 import requests
-from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, QTimer
 
 from view import request_worker
 from view.request_worker import RequestWorker
-
-
-@pytest.fixture(scope='module')
-def app():
-    return QCoreApplication.instance() or QCoreApplication([])
 
 
 def run_worker(worker):
