@@ -61,3 +61,25 @@ def test_ctrl_enter_runs_request(app, monkeypatch, key):
 
     assert runs == [True]
     window.close()
+
+
+def test_replace_clears_fields_missing_from_data(editor):
+    editor.setRequestFields({
+        'method': 'POST', 'url': 'https://api.test/a', 'headers': {'X-A': '1'}, 'cookies': {'c': '1'},
+        'payload': {'a': 1}, 'file_key': 'f', 'filepath': '/tmp/x.csv',
+    })
+    editor.setRequestFields({'url': 'https://api.test/b'}, replace=True)
+
+    assert editor.getRequestFields() == {
+        'method': 'GET', 'url': 'https://api.test/b', 'headers': {}, 'cookies': {},
+        'payload': None, 'file_key': '', 'filepath': '',
+    }
+
+
+def test_default_set_fields_keeps_existing_values(editor):
+    editor.setRequestFields({'method': 'POST', 'headers': {'X-A': '1'}})
+    editor.setRequestFields({'url': 'https://api.test/b'})
+
+    fields = editor.getRequestFields()
+    assert fields['method'] == 'POST'
+    assert fields['headers'] == {'X-A': '1'}
